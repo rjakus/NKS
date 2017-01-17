@@ -12,7 +12,10 @@ INSTALL:
 
   pip install -U selenium
 
-  sudo apt-get install chromium-chromedriver
-  PATH=$PATH:/usr/lib/chromium-browser/
+  download https://github.com/mozilla/geckodriver/releases
+  
+  copy geckodriver to /usr/local/bin/geckodriver and then 
+  
+  PATH=$PATH:/usr/local/bin/geckodriver
 
 .xml file must be in same directory as scroll.py

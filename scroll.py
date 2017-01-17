@@ -90,8 +90,7 @@ while True:
                 activeTab = tabs
             else:
                 activeTab = activeTab - 1
-            #browser.switch_to_window(browser.window_handles[activeTab])
-            browser.switch_to_active_element()
+            browser.switch_to_window(browser.window_handles[activeTab])
 
     cv2.imshow('img',img)
     k = cv2.waitKey(30) & 0xff
