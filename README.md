@@ -19,3 +19,6 @@ INSTALL:
   PATH=$PATH:/usr/local/bin/geckodriver
 
 .xml file must be in same directory as scroll.py
+
+#for c++ version
+sudo apt-get install xdotool
