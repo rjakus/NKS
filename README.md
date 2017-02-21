@@ -22,3 +22,4 @@ INSTALL:
 
 #for c++ version
 sudo apt-get install xdotool
+mallick xml files, working faster 
