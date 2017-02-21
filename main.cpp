@@ -17,8 +17,12 @@ int x_prev = 0; int y_prev = 0; int A_prev = 0; int delta_a = 0;
 
 
 /** Global variables */
-String face_cascade_name = "/home/lenovo/mallick_cascades-master/haarcascades/haarcascade_frontalface_alt.xml";
+String face_cascade_name = "/home/lenovo/mallick_cascades-master/lbpcascades/mallick_lbpcascade_frontalface.xml";
+String profile_face_cascade_name = "/home/lenovo/mallick_cascades-master/lbpcascades/mallick_lbpcascade_profileface.xml";
+
 CascadeClassifier face_cascade;
+CascadeClassifier profile_face_cascade;
+
 
 bool scroll_mode=false;
 int trenutni = 0;
@@ -54,9 +58,9 @@ void mousemove(int x_pos, int y_pos)
     stringstream sstr; stringstream sstr2;
 
     ///Conversion to regular string happens here
-    sstr<<5*x_pos;
+    sstr<<4*x_pos;
     xcord = sstr.str();
-    sstr2<<5*y_pos;
+    sstr2<<4*y_pos;
     ycord = sstr2.str();
 
     ///Getting the command string
@@ -106,102 +110,6 @@ void HSV_threshold(Mat &image, Mat &output_image_gray, int H_upper, int H_lower,
         }
 }
 
-Mat Canny_Filter(Mat &gray_image, int lower_thresh,int upper_thresh)
-{
-    ///Mat object with edges that will be returned
-    Mat edges;
-
-    ///Reducing image noise with blur function
-    blur(gray_image, edges, Size(3,3));
-
-    ///Canny edge detection function
-    Canny(edges, edges, lower_thresh, upper_thresh, 3);
-
-    return edges;
-}
-
-///Cartoonify function
-Mat cartoonify(Mat &gray_image)
-{
-    ///Declaration of Mat objects.
-    Mat result; Mat edges;
-    ///This variable defines the size of the kernel used for blur.
-    const int BLUR_SIZE = 7;
-
-    ///The blur function
-    medianBlur(gray_image,result,BLUR_SIZE);
-
-    ///Size of kernel matrix for the Laplacian
-    const int LAPLACIAN_SIZE = 5;
-
-    ///Function that carries out the laplacian
-    Laplacian(result, edges, CV_8U, LAPLACIAN_SIZE);
-
-    ///Final thresholded image
-    Mat mask;
-    const int THRESH = 80;
-
-    ///Thresholding happens here.
-    threshold(edges, mask, THRESH, 255, THRESH_BINARY_INV);
-
-    ///Output the thresholded image
-    return mask;
-}
-
-///funkcija koja provjerava datekciju profila
-void detectAndDisplay( Mat frame )
-{
-  std::vector<Rect> faces;
-  Mat frame_gray;
-
-  cvtColor( frame, frame_gray, CV_BGR2GRAY );
-  equalizeHist( frame_gray, frame_gray );
-
-  //-- Detect faces
-  face_cascade.detectMultiScale( frame_gray, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );
-
-  for( size_t i = 0; i < faces.size(); i++ )
-  {
-    Point center( faces[i].x + faces[i].width*0.5, faces[i].y + faces[i].height*0.5 );
-    ellipse( frame, center, Size( faces[i].width*0.5, faces[i].height*0.5), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
-	
-	trenutni+=1;
-	
-	if(trenutni==1){
-		starty=center.y;
-	}
-	sredistey=center.y;
-  }
-  
-  
-  if(prethodni < trenutni){
-	  prethodni=trenutni;
-	  if((sredistey < starty) && (sredistey < starty-10)){
-		cout<<"scroll gore";
-			
-			  ///Getting the command string
-			string command = "xdotool click --clearmodifiers 5" ;
-
-			///Converting command string to a form that system() accepts.
-			const char *com = command.c_str();
-			system(com);
-			
-	  }
-	  else if((sredistey> starty) && (sredistey > starty+10)){
-		cout<<"scroll dolje";
-		  ///Getting the command string
-			string command = "xdotool click --clearmodifiers -5" ;
-
-			///Converting command string to a form that system() accepts.
-			const char *com = command.c_str();
-			system(com);
-			
-	  }
-	}
-	
-  //-- Show what you got
-  imshow( "profile", frame );
- }
 
 ///funkcija koja provjerava dali je detektirana crvena boja
 int red_color(Mat &camera_frame){
@@ -228,6 +136,121 @@ int red_color(Mat &camera_frame){
 	else return 0;
 }
 
+///funkcija koja provjerava dali je detektirana plava boja
+int blue_color(Mat &camera_frame){
+		
+	int BHL = 0;
+    int BHU = 35;
+    int BSL = 91;  
+    int BSU = 255;
+    int BVL = 62; 
+    int BVU = 255;
+	
+	Mat thresh_frame_blue(Size(camera_frame.cols, camera_frame.rows), CV_8U);
+	
+	HSV_threshold(camera_frame, thresh_frame_blue, BHU, BHL, BSU, BSL, BVU, BVL);
+    medianBlur(thresh_frame_blue, thresh_frame_blue, 5); ///Low Pass filter to remove noise
+
+	//provjera dali pronalazi crvene objekte
+	imshow("Blue_Color", thresh_frame_blue); //show the thresholded image
+
+	Point Centroid; int Area;
+	getCentroid(thresh_frame_blue, Centroid, Area);
+	
+	if (Area>500) return 1;
+	else return 0;
+}
+
+///funkcija koja provjerava datekciju profila
+void detectAndDisplay( Mat &frame )
+{
+  std::vector<Rect> faces, right_profile, left_profile;
+  Mat frame_gray, frame_gray_left;
+
+  cvtColor( frame, frame_gray, CV_BGR2GRAY );
+  equalizeHist( frame_gray, frame_gray );
+  
+  Mat frame_left;
+  frame_left=frame;
+  
+  flip(frame_left, frame_left, 1);
+  
+  cvtColor( frame_left, frame_gray_left, CV_BGR2GRAY );
+  equalizeHist( frame_gray_left, frame_gray_left );
+  
+
+  //-- Detect faces and profile
+  face_cascade.detectMultiScale( frame_gray, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );
+  profile_face_cascade.detectMultiScale( frame_gray, right_profile, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(60, 60) );
+  profile_face_cascade.detectMultiScale( frame_gray_left, left_profile, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(60, 60) );
+
+
+ // flip(camera_frame, camera_frame, 1);
+
+  for( size_t i = 0; i < faces.size(); i++ )
+  {
+    Point center( faces[i].x + faces[i].width*0.5, faces[i].y + faces[i].height*0.5 );
+    ellipse( frame, center, Size( faces[i].width*0.5, faces[i].height*0.5), 0, 0, 360, Scalar( 255, 0, 255 ), 4, 8, 0 );
+	
+	trenutni+=1;
+	
+	if(trenutni==1){
+		starty=center.y;
+	}
+	sredistey=center.y;
+  }
+  
+  
+  if(prethodni < trenutni){
+	  prethodni=trenutni;
+	  if((sredistey < starty) && (sredistey < starty-10)){
+		//cout<<"scroll gore";
+			
+			  ///Getting the command string
+			string command = "xdotool click --clearmodifiers 4" ;
+
+			///Converting command string to a form that system() accepts.
+			const char *com = command.c_str();
+			system(com);
+			
+	  }
+	  else if((sredistey> starty) && (sredistey > starty+10)){
+		//cout<<"scroll dolje";
+		  ///Getting the command string
+			string command = "xdotool click --clearmodifiers 5" ;
+
+			///Converting command string to a form that system() accepts.
+			const char *com = command.c_str();
+			system(com);
+			
+	  }
+	}
+	
+	
+  for( size_t i = 0; i < right_profile.size(); i++ )
+  {
+    Point center( right_profile[i].x + right_profile[i].width*0.5, right_profile[i].y + right_profile[i].height*0.5 );
+    ellipse( frame, center, Size( right_profile[i].width*0.5, right_profile[i].height*0.5), 0, 0, 360, Scalar( 0, 0, 255 ), 4, 8, 0 );
+	
+	//Browsers["Item"](btChrome)["Run"]("http://smartbear.com");
+//	system("firefox http://mysite.com");
+	system("xdg-open http://google.com/");
+//firefox -remote 'openurl(http://stackoverflow.com)';
+
+  }
+  
+    for( size_t i = 0; i < left_profile.size(); i++ )
+  {
+    Point center( left_profile[i].x + left_profile[i].width*0.5, left_profile[i].y + left_profile[i].height*0.5 );
+    ellipse( frame, center, Size( left_profile[i].width*0.5, left_profile[i].height*0.5), 0, 0, 360, Scalar( 0, 255, 255 ), 4, 8, 0 );
+	
+	//switch between tabs
+  }
+
+	
+  //-- Show what you got
+  imshow( "profile", frame );
+ }
 
 int main(int argc, char** argv)
 {
@@ -287,33 +310,29 @@ int main(int argc, char** argv)
         }
         flip(camera_frame, camera_frame, 1);
         
-        
+    
         if (scroll_mode==true){
 			if( !face_cascade.load( face_cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };
+			if( !profile_face_cascade.load( profile_face_cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };
+
 			detectAndDisplay(camera_frame);
 		}
         //provjeri dali je detektirana crvena boja
-        else if(red_color(camera_frame)==1){
+        if(red_color(camera_frame)==1){
 			scroll_mode=true;
 			
-			cout<<"crvena boja\n";
+		//	cout<<"crvena boja\n";
 			
 			trenutni = 0;
-			prethodni = 0;
-			
-			//detectAndDisplay(camera_frame);
-			  ///Getting the command string
-			//string command = "xdotool click --clearmodifiers 5" ;
-
-			///Converting command string to a form that system() accepts.
-			//const char *com = command.c_str();
-			//system(com);
-			//profile(camera_frame);
+			prethodni = 0;		
+		}
+		if(blue_color(camera_frame)==1){
+			scroll_mode=false;
+		//	cout<<"plava boja\n";
+			//cout<<scroll_mode;
 		}
 		
 		
-		
-
 		//detectAndDisplay(camera_frame);
         ///Declaring a thresholded image of same size as the camera frame but grayscale.
         Mat thresh_frame(Size(camera_frame.cols, camera_frame.rows), CV_8U);
@@ -351,25 +370,13 @@ int main(int argc, char** argv)
         ///Listening for the user to press a key on the keyboard
         char keypress = waitKey(10);
 
-        ///If user pressed 'c' stop program and save current frame to file
-        if(keypress == 'c')
-        {
-            imwrite("capture.png", camera_frame);
-            cout<<"Image captured"<<"Now exiting program";
-            break;
-        }
-        if(keypress == 'a') cout<<Area<<"\n";
+  
         ///If user pressed escape key stop program.
         if(keypress == 27)
         {
             break;
         }
-        ///Getting darkfield images
-        if(keypress == 'd')
-        {
-            imwrite("darkfield1.png", camera_frame);
-            cout<<"Darkfield Image captured"<<"\n";
-        }
+
     }
 
     return 0;
