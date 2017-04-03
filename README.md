@@ -2,6 +2,9 @@
 
 Student project: controlling mouse with trakcing color, with extra head gestures (scrolling - moving head up and down, if is detected left profile of head - open a new tab in browser, detected right profile of head - switch between tabs )
 
+Project is achieved in C++ and Python
+
+
 INSTALL:
   pip install python-xlib
 
